@@ -198,9 +198,9 @@ _model_config = {
     "id": os.getenv("MODEL_ID", "deepseek-v4-flash"),
     "base_url": os.getenv("API_BASE_URL", "https://api.deepseek.com/v1"),
     "api_key": os.getenv("API_KEY"),
-    "temperature": 0.1,
+    "temperature": float(os.getenv("TEMPERATURE", "0.1")),
     "max_tokens": min(int(os.getenv("MAX_TOKENS", "16384")), 16384),
-    "max_retries": 5,
+    "max_retries": int(os.getenv("MAX_RETRIES", "5")),
     "timeout": httpx.Timeout(request_timeout, connect=60.0, read=request_timeout, write=120.0),
     "http_client": _sync_http_client,
     "role_map": {"system": "system", "user": "user", "assistant": "assistant", "tool": "tool"},
@@ -290,16 +290,16 @@ app = agent_os.get_app()
 def _get_active_model_info(tier: str = None, message: str = "") -> dict:
     """Restituisce info sul modello attivo per una richiesta."""
     selected = _select_model(tier, message)
-    model_id = os.getenv("MODEL_PRO_ID" if selected is model_pro else "MODEL_ID", "deepseek-v4-flash")
-    model_name = "DeepSeek V4 Pro" if selected is model_pro else "DeepSeek V4 Flash"
     is_pro = selected is model_pro
+    model_id = os.getenv("MODEL_PRO_ID" if is_pro else "MODEL_ID", "deepseek-v4-flash")
+    model_name = os.getenv("MODEL_PRO_NAME" if is_pro else "MODEL_NAME", "DeepSeek V4 Pro" if is_pro else "DeepSeek V4 Flash")
     effective_tier = tier or os.getenv("MODEL_TIER", "auto")
     return {
         "model_id": model_id,
         "model_name": model_name,
         "tier": "pro" if is_pro else "flash",
         "tier_mode": effective_tier,
-        "params_active": "49B" if is_pro else "13B",
+
     }
 
 
@@ -531,19 +531,11 @@ async def get_model_info():
     return JSONResponse({
         "flash": {
             "model_id": os.getenv("MODEL_ID", "deepseek-v4-flash"),
-            "model_name": "DeepSeek V4 Flash",
-            "params_active": "13B",
-            "price_input_cache_hit": "$0.0028/1M",
-            "price_input_cache_miss": "$0.14/1M",
-            "price_output": "$0.28/1M",
-        },
+            "model_name": os.getenv("MODEL_NAME", "DeepSeek V4 Flash"),
+            },
         "pro": {
             "model_id": os.getenv("MODEL_PRO_ID", "deepseek-v4-pro"),
-            "model_name": "DeepSeek V4 Pro",
-            "params_active": "49B",
-            "price_input_cache_hit": "$0.003625/1M",
-            "price_input_cache_miss": "$0.435/1M",
-            "price_output": "$0.87/1M",
+            "model_name": os.getenv("MODEL_PRO_NAME", "DeepSeek V4 Pro"),
         },
         "current_tier": current_tier,
         "current": _get_active_model_info(),
