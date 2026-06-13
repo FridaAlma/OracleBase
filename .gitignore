@@ -6,3 +6,4 @@ __init__.py
 *.db-shm
 *.db-wal
 .cli_history
+.cache_ggshield
