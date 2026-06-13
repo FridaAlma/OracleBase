@@ -1,5 +1,6 @@
 __pycache__/
 .venv/
+document_raw/
 __init__.py
 .env
 *.db
