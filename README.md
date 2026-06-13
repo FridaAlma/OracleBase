@@ -14,6 +14,7 @@
 - **Interactive CLI** — Rich CLI with multi-line paste support and command history
 - **Sub-agents** — Launches sub-agents for complex parallel research tasks
 - **Tool creation** — Dynamically builds missing tools, registers them, and reuses them across sessions
+- **Tool lifecycle management** — Auto-classification, registration, and cleanup of volatile/persistent/generated artifacts
 - **Vector memory** — ChromaDB-based semantic search with multimodal (text + image) support
 - **FastAPI server** — REST API with streaming SSE endpoints for custom integrations
 
@@ -28,10 +29,12 @@ oracle/
 ├── chat.html               # Web chat UI (single-file HTML + JS)
 ├── system_prompt.md        # Agent system instructions
 ├── oracle.bat              # Windows launcher (CLI or UI)
+├── oracle.sh               # macOS/Linux launcher (CLI or UI)
 ├── .env                    # Configuration (API key, model, server)
 ├── .env.example            # Template for .env
 ├── requirements.txt        # Python dependencies
 ├── tools/
+│   ├── __init__.py
 │   ├── vector_memory.py    # ChromaDB vector memory engine
 │   └── multimodal_encoder.py # CLIP-based image/text encoder
 └── workspace/
@@ -67,11 +70,13 @@ oracle/
 | `uvicorn` | >=0.40.0 | ASGI server |
 | `httpx` | >=0.28.1 | HTTP client |
 | `openai` | >=1.0.0 | OpenAI-compatible API client |
+| `python-dotenv` | >=1.1.1 | Environment variable loader |
 | `sqlalchemy` | >=2.0.0 | ORM for database |
 | `aiosqlite` | >=0.19.0 | Async SQLite |
 | `chromadb` | >=1.5.0 | Vector database |
 | `transformers` | >=4.30.0 | ML models (multimodal) |
 | `torch` | >=2.0.0 | PyTorch (multimodal) |
+| `torchaudio` | >=2.0.0 | Audio processing |
 | `Pillow` | >=10.0.0 | Image processing |
 
 ---
@@ -121,6 +126,12 @@ API_BASE_URL=https://api.deepseek.com/v1
 API_KEY=your-api-key-here
 MAX_TOKENS=16384
 REQUEST_TIMEOUT=300
+TEMPERATURE=0.1
+MAX_RETRIES=5
+
+# Display info (optional, used by /api/model)
+MODEL_NAME=DeepSeek V4 Flash
+MODEL_PRO_NAME=DeepSeek V4 Pro
 
 # Server configuration
 HOST=0.0.0.0
@@ -139,6 +150,9 @@ Start the server and open the browser:
 # Windows (launcher)
 oracle.bat
 
+# macOS/Linux
+./oracle.sh
+
 # Or directly
 python coding_agent.py --port 8000
 ```
@@ -152,12 +166,17 @@ Then open `http://localhost:8000/ui` in your browser.
 - Model tier toggle (Auto / Flash / Pro)
 - Session management with persistent history
 - Stop button to interrupt responses
+- Periodic health check with connection status indicator
+- Copy-to-clipboard on assistant messages
 
 ### Interactive CLI
 
 ```bash
 # Windows
 oracle.bat --cli
+
+# macOS/Linux
+./oracle.sh --cli
 
 # Or directly
 python cli.py
@@ -188,21 +207,31 @@ python cli.py --flash "What does this function do?"
 python cli.py "Hello"
 ```
 
-### Launcher options (`oracle.bat`)
+### Launcher options (`oracle.bat` / `oracle.sh`)
 
 | Command | Effect |
 |---------|--------|
-| `oracle.bat` | Start Web UI (default) |
-| `oracle.bat --cli` | Start interactive CLI |
-| `oracle.bat --pro` | Use Pro model |
-| `oracle.bat --flash` | Use Flash model |
-| `oracle.bat --port 8080` | Web UI on port 8080 |
-| `oracle.bat --help` | Show help |
+| `oracle.bat` / `./oracle.sh` | Start Web UI (default) |
+| `--cli` | Start interactive CLI |
+| `--pro` / `--deep` | Use Pro model |
+| `--flash` | Use Flash model |
+| `--port 8080` | Web UI on port 8080 |
+| `--help` | Show help |
+
+### Server arguments (`coding_agent.py`)
+
+| Argument | Effect |
+|----------|--------|
+| `--port PORT` | Server port (default: 8000) |
+| `--host HOST` | Server bind address (default: 0.0.0.0) |
+| `--model-tier auto|flash|pro` | Force model tier for all requests |
+| `--deep` | Shortcut for `--model-tier=pro` |
 
 ### API endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/health` | GET | Health check (used by launcher and UI) |
 | `/api/chat` | POST | Non-streaming chat |
 | `/api/chat/stream` | GET | Streaming chat (SSE) |
 | `/api/chat/sessions` | GET | List recent sessions |
@@ -223,30 +252,35 @@ python cli.py "Hello"
 
 5. **Vector memory** — For semantic search across knowledge, code, and project data, Oracle uses ChromaDB with optional multimodal (text + image) encoding via CLIP.
 
+6. **Feasibility pre-flight** — Before building complex tools, Oracle probes port connectivity, Python dependencies, filesystem permissions, and environment variables to avoid wasted effort on blocked tasks.
+
 ---
 
 ## Project Components
 
 ### `coding_agent.py`
-Core agent definition with FastAPI server. Sets up the AI model, tools, memory, and SSE streaming endpoints. Supports retry logic for connection errors.
+Core agent definition with FastAPI server. Sets up the AI model, tools, memory, and SSE streaming endpoints. Supports retry logic for connection errors. Includes diagnostic API connectivity check on startup.
 
 ### `cli.py`
-Interactive command-line interface with persistent history, multi-line paste support, and model tier selection.
+Interactive command-line interface with persistent history, multi-line paste support, and model tier selection (auto/flash/pro).
 
 ### `chat.html`
-Single-file web chat UI (~900 lines of HTML/CSS/JS) with dark theme, Markdown rendering, tool activity panel, image card previews, and real-time streaming.
+Single-file web chat UI (~1800 lines of HTML/CSS/JS) with dark theme, Markdown rendering, tool activity panel, image card previews, periodic health checks, and real-time streaming.
 
 ### `system_prompt.md`
 Detailed system instructions defining Oracle's personality, behavior rules, software engineering workflow, code conventions, tool management protocols, and dual-mode communication style.
 
-### `oracle.bat`
-Windows batch launcher that checks for Python and `.env`, starts the server in a separate window, opens the browser, and handles cleanup on shutdown.
+### `oracle.bat` / `oracle.sh`
+Platform-specific launchers (Windows batch / bash) that check for Python and `.env`, install missing dependencies, start the server, open the browser, and handle cleanup on shutdown.
 
 ### `tools/vector_memory.py`
 ChromaDB-based vector database for semantic similarity search. Supports text and image queries with CLIP encoding.
 
+### `tools/multimodal_encoder.py`
+CLIP-based encoder that maps text and images into a shared 512-dimensional embedding space.
+
 ### `workspace/tool_repository.py` / `tool_lifecycle.py`
-Tool registry for discovering, promoting, and reusing tools. Lifecycle manager handles auto-classification and cleanup of volatile vs. persistent files.
+Tool registry for discovering, promoting, and reusing tools. Lifecycle manager handles auto-classification and cleanup of volatile vs. persistent files with configurable TTL.
 
 ---
 
@@ -256,13 +290,17 @@ All settings are in `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `API_BASE_URL` | `https://api.deepseek.com/v1` | API endpoint |
+| `API_KEY` | — | Your API key |
 | `MODEL_ID` | `deepseek-v4-flash` | Fast model ID |
 | `MODEL_PRO_ID` | `deepseek-v4-pro` | High-quality model ID |
 | `MODEL_TIER` | `auto` | Model selection mode |
-| `API_BASE_URL` | `https://api.deepseek.com/v1` | API endpoint |
-| `API_KEY` | — | Your API key |
 | `MAX_TOKENS` | `16384` | Max response tokens |
 | `REQUEST_TIMEOUT` | `300` | Timeout in seconds |
+| `TEMPERATURE` | `0.1` | Model temperature |
+| `MAX_RETRIES` | `5` | Max retry attempts on failure |
+| `MODEL_NAME` | `DeepSeek V4 Flash` | Display name for Flash model |
+| `MODEL_PRO_NAME` | `DeepSeek V4 Pro` | Display name for Pro model |
 | `HOST` | `0.0.0.0` | Server bind address |
 | `PORT` | `8000` | Server port |
 
