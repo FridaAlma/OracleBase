@@ -1,82 +1,71 @@
-# Oracle — AI Coding Agent Autonomo
+# Oracle — Autonomous AI Coding Agent
 
-**Oracle** e' un agente di coding autonomo basato su [Agno](https://github.com/agno-agi/agno), progettato per leggere, scrivere, modificare, cercare ed eseguire codice in modo automatico.
+**Oracle** is an autonomous coding agent built on [Agno](https://github.com/agno-agi/agno), designed to read, write, edit, search, and execute code — all on its own.
 
----
-
-## Indice
-
-1. [Panoramica](#panoramica)
-2. [Architettura Base](#architettura-base)
-3. [Installazione](#installazione)
-4. [Configurazione](#configurazione)
-5. [Utilizzo](#utilizzo)
-6. [Componenti del Progetto](#componenti-del-progetto)
-7. [Requisiti](#requisiti)
-8. [Note sulla Sicurezza](#note-sulla-sicurezza)
+> 🧠 It doesn't just follow instructions. It figures out what tools it needs, builds them on the fly, and gets the job done.
 
 ---
 
-## Panoramica
+## ✨ What It Can Do
 
-Oracle e' un agente AI che alla sua installazione base sa:
+Out of the box, Oracle can:
 
-- **Leggere** qualsiasi file nel progetto
-- **Scrivere e modificare** codice atomicamente
-- **Cercare** file con glob patterns e contenuti con espressioni regolari
-- **Eseguire** comandi shell arbitrari
-- **Ricordare** preferenze utente e contesto tra piu' sessioni
-- **Creare propri tool** durante l'uso, catalogarli e riutilizzarli
-- **Lanciare sub-agenti** per ricerche complesse
+- **Read** any file in your project
+- **Write & edit** code atomically with surgical precision
+- **Search** files with glob patterns and contents with regex
+- **Run** arbitrary shell commands
+- **Remember** your preferences and context across sessions
+- **Create its own tools** on the fly — and reuse them later
+- **Launch sub-agents** for complex, multi-step research
 
-Oracle puo costruire i tool necessari, che non possiede, per completare la richiesta dell'utente
+No tool for the job? Oracle builds one.
 
 ---
 
-## Architettura Base
+## 🏗️ Architecture
 
-Oracle e' composto solo dal framework Agno e da un sottile wrapper:
+Oracle is delightfully simple: just Agno + a thin wrapper.
 
 ```
 D:\Work\AGI\Oracle/
 │
-├── coding_agent.py        # Definizione agente + server FastAPI + API chat
-├── cli.py                 # Interfaccia CLI interattiva
-├── chat.html              # Interfaccia chatbot web (UI)
-├── system_prompt.md       # Prompt di sistema dell'agente
-├── oracle.bat             # Launcher Windows (CLI o UI)
-├── .env                   # Configurazione (API key, modello, server)
-├── .env.example           # Template per .env
-├── requirements.txt       # Dipendenze Python
-└── coding_agent.db        # SQLite: sessioni, memoria agente
+├── coding_agent.py        # Agent definition + FastAPI server + chat API
+├── cli.py                 # Interactive CLI interface
+├── chat.html              # Web chatbot UI
+├── system_prompt.md       # Agent's system prompt (personality + rules)
+├── oracle.bat             # Windows launcher (CLI or UI)
+├── .env                   # Configuration (API key, model, server)
+├── .env.example           # Template for .env
+├── requirements.txt       # Python dependencies
+└── coding_agent.db        # SQLite: sessions, agent memory
 ```
 
-### Cosa fornisce Agno (framework base)
+### What Agno Brings to the Table
 
-| Componente | Descrizione |
+| Component | Description |
 |-----------|-------------|
-| **`OpenAIChat`** | Integrazione con modelli OpenAI-compatible (DeepSeek, GPT, etc.) |
-| **`CodingTools`** | Tool nativi: `read`, `write`, `edit`, `search`, `grep`, `shell`, `task` |
-| **`Workspace`** | Tool nativi: `list`, `read`, `search`, `shell` su directory |
-| **`Agent`** | Orchestratore: model + tools + memory + instructions |
-| **`AgentOS`** | Server FastAPI + routing + tracing integrato |
-| **`SqliteDb`** | Storage persistente per sessioni e memoria agente |
-| **Agentic Memory** | Memoria cross-sessione per preferenze utente |
+| **`OpenAIChat`** | Drop-in integration with any OpenAI-compatible model (DeepSeek, GPT, etc.) |
+| **`CodingTools`** | Native tools: `read`, `write`, `edit`, `search`, `grep`, `shell`, `task` |
+| **`Workspace`** | Directory-level tools: `list`, `read`, `search`, `shell` |
+| **`Agent`** | The master orchestrator — model + tools + memory + instructions |
+| **`AgentOS`** | FastAPI server with built-in routing and tracing |
+| **`SqliteDb`** | Persistent storage for sessions and agent memory |
+| **Agentic Memory** | Cross-session memory for user preferences |
 
-**In sintesi:** Agno fornisce il motore agente, i tool di coding fondamentali e l'infrastruttura server.
+**Bottom line:** Agno is the engine. Oracle is the driver.
 
 ---
 
-## Installazione
+## 🚀 Getting Started
 
-### 1. Clona il repository
+### 1. Clone the repo
 
 ```bash
-git clone <url-del-repository>
+git clone <repository-url>
 cd D:\Work\AGI\Oracle
 ```
 
-### 2. Crea un ambiente virtuale (consigliato)
+### 2. Create a virtual environment (recommended)
 
 ```bash
 python -m venv .venv
@@ -84,192 +73,192 @@ python -m venv .venv
 source .venv/bin/activate  # Linux/Mac
 ```
 
-### 3. Installa le dipendenze
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configura le variabili d'ambiente
+### 4. Configure environment variables
 
 ```bash
 copy .env.example .env    # Windows
 cp .env.example .env      # Linux/Mac
 ```
 
-Modifica il file `.env` con i tuoi valori (vedi [Configurazione](#configurazione)).
+Edit `.env` with your settings (see [Configuration](#configuration)).
 
 ---
 
-## Configurazione
+## ⚙️ Configuration
 
-Il file `.env` contiene tutte le impostazioni:
+Everything lives in `.env`:
 
 ```ini
-# ── Modello AI ──
-MODEL_ID=deepseek-v4-flash        # Modello da utilizzare
-API_BASE_URL=https://api.deepseek.com/v1  # Endpoint API
-API_KEY=your-api-key-here          # Chiave API DeepSeek
-MAX_TOKENS=16384                   # Token massimi per risposta
-REQUEST_TIMEOUT=120                # Timeout richiesta in secondi
+# ── AI Model ──
+MODEL_ID=deepseek-v4-flash        # Model to use
+API_BASE_URL=https://api.deepseek.com/v1  # API endpoint
+API_KEY=your-api-key-here          # Your DeepSeek API key
+MAX_TOKENS=16384                   # Max tokens per response
+REQUEST_TIMEOUT=120                # Request timeout in seconds
 
-# ── Server FastAPI ──
-HOST=127.0.0.1                     # IP su cui ascoltare
-PORT=8000                          # Porta del server
+# ── FastAPI Server ──
+HOST=127.0.0.1                     # Bind address
+PORT=8000                          # Server port
 ```
 
 ---
 
-## Utilizzo
+## 🎮 Usage
 
-Oracle offre due interfacce: **Web UI** (default) e **CLI**.
+Oracle comes with two interfaces: **Web UI** (default) and **CLI**.
 
-### Web UI (Chatbot)
+### 🌐 Web UI (Chatbot)
 
-Interfaccia chatbot moderna con streaming in tempo reale. **Modalita' predefinita.**
+A modern chatbot interface with real-time streaming. **This is the default mode.**
 
 ```bash
 oracle.bat
 ```
 
-Cosa fa:
-1. Avvia il server FastAPI in finestra separata
-2. Apre automaticamente il browser su `http://localhost:8000/ui`
-3. Premi Ctrl+C nella finestra batch per fermare il server
+What happens:
+1. Launches the FastAPI server in a separate window
+2. Opens your browser to `http://localhost:8000/ui`
+3. Press Ctrl+C in the batch window to stop
 
-Puoi anche avviare manualmente:
+Or manually:
 
 ```bash
 python coding_agent.py --port 8000
 ```
 
-E aprire il browser su `http://localhost:8000/ui`
+Then open `http://localhost:8000/ui` in your browser.
 
-**Caratteristiche dell'interfaccia web:**
-- Streaming in tempo reale delle risposte (SSE)
-- Markdown renderizzato (codice, tabelle, elenchi)
-- Indicatori visivi durante le chiamate tool
-- Gestione automatica delle sessioni
-- Pulsante per nuova conversazione
-- Interrompibile (pulsante stop / tasto Esc)
+**Web UI features:**
+- Real-time response streaming (SSE)
+- Rendered Markdown (code, tables, lists)
+- Visual indicators during tool calls
+- Automatic session management
+- New conversation button
+- Interruptible (stop button / Esc key)
 
-### CLI Interattiva
+### 💻 Interactive CLI
 
-Avvia una sessione interattiva con cronologia comandi e supporto multi-riga:
+Start an interactive session with command history and multi-line support:
 
 ```bash
 oracle.bat --cli
 ```
 
-Oppure direttamente:
+Or directly:
 
 ```bash
 python cli.py
 ```
 
-Nella CLI:
-- Digita un prompt e premi Invio
-- **Incolla codice su piu' righe** — viene rilevato automaticamente (bracketed paste mode)
-- `exit` o `quit` per uscire
-- `Ctrl+C` per interrompere
+In the CLI:
+- Type a prompt and press Enter
+- **Paste multi-line code** — automatically detected (bracketed paste mode)
+- `exit` or `quit` to leave
+- `Ctrl+C` to interrupt
 
-### Singolo comando
+### ⚡ One-shot command
 
 ```bash
-python cli.py "Crea un file README per questo progetto"
+python cli.py "Create a README for this project"
 ```
 
-### Server FastAPI (diretto)
+### 🖥️ FastAPI Server (direct)
 
 ```bash
 python coding_agent.py --port 8080
 ```
 
-**Opzioni:**
-| Flag | Default | Descrizione |
+**Options:**
+| Flag | Default | Description |
 |------|---------|-------------|
-| `--port` | `8000` | Porta del server |
-| `--host` | `0.0.0.0` | Indirizzo di ascolto |
+| `--port` | `8000` | Server port |
+| `--host` | `0.0.0.0` | Bind address |
 
-### Launcher Windows (`oracle.bat`)
+### 🪟 Windows Launcher (`oracle.bat`)
 
-| Comando | Effetto |
-|---------|---------|
-| `oracle.bat` | Avvia Web UI (default) |
-| `oracle.bat --cli` | Avvia CLI interattiva |
-| `oracle.bat --port 8080` | Web UI su porta 8080 |
-| `oracle.bat --help` | Mostra aiuto |
-
----
-
-## Componenti del Progetto
-
-### `coding_agent.py` — Agente + Server
-
-Il cuore del progetto. Definisce l'agente Oracle con:
-
-- **Modello AI**: DeepSeek (o qualsiasi modello OpenAI-compatible via `API_BASE_URL`)
-- **Tool base (Agno)**: `CodingTools` (lettura, scrittura, modifica, shell, task) e `Workspace` (navigazione file)
-- **Memoria**: SQLite persistente (`coding_agent.db`) + agentic memory
-- **Storico**: ultime 3 conversazioni iniettate nel contesto
-- **Server FastAPI**: esposto su endpoint `/api/chat`, `/api/chat/stream` (SSE), `/api/chat/sessions`
-- **Retry logic**: gestione automatica di errori di connessione con secondo tentativo
-
-### `cli.py` — Interfaccia a Riga di Comando
-
-CLI interattiva con:
-- **History persistente** (file `.cli_history`)
-- **Multi-line input** con rilevamento automatico di paste (bracketed paste mode)
-- **Streaming** delle risposte in tempo reale
-
-### `oracle.bat` — Launcher Windows
-
-Script batch che:
-1. Verifica che Python sia installato
-2. Controlla l'esistenza del file `.env`
-3. Avvia la Web UI o CLI interattiva
-4. Gestisce cleanup browser e server all'arresto
-
-### `system_prompt.md` — Prompt di Sistema
-
-Documento che definisce la personalita', le regole comportamentali e i protocolli operativi di Oracle. Include:
-- Regole generali di comportamento
-- Workflow di ingegneria del software
-- Convenzioni di codice
-- Protocolli di debugging e testing
-- **Tool creation mandate**: Oracle non rifiuta mai un task per mancanza di strumenti — li costruisce da se'
+| Command | Effect |
+|---------|--------|
+| `oracle.bat` | Launch Web UI (default) |
+| `oracle.bat --cli` | Launch interactive CLI |
+| `oracle.bat --port 8080` | Web UI on port 8080 |
+| `oracle.bat --help` | Show help |
 
 ---
 
-## Requisiti
+## 📁 Project Breakdown
 
-### Dipendenze Python (`requirements.txt`)
+### `coding_agent.py` — The Brains
 
-| Pacchetto | Versione | Scopo |
-|-----------|----------|-------|
-| `agno` | >=2.6.4 | Framework agente AI |
-| `python-dotenv` | >=1.1.1 | Caricamento variabili d'ambiente |
-| `httpx` | >=0.28.1 | Client HTTP con timeout configurabile |
-| `uvicorn` | >=0.40.0 | Server ASGI per FastAPI |
-| `openai` | >=1.0.0 | Client API OpenAI-compatible |
-| `sqlalchemy` | >=2.0.0 | ORM per database |
-| `aiosqlite` | >=0.19.0 | SQLite asincrono |
-| `fastapi` | >=0.100.0 | Server web per API |
+The heart of the project. Defines the Oracle agent with:
+
+- **AI Model**: DeepSeek (or any OpenAI-compatible model via `API_BASE_URL`)
+- **Core Tools (Agno)**: `CodingTools` (read, write, edit, shell, task) and `Workspace` (file navigation)
+- **Memory**: Persistent SQLite (`coding_agent.db`) + agentic memory
+- **Context**: Last 3 conversations injected for continuity
+- **FastAPI Server**: Endpoints at `/api/chat`, `/api/chat/stream` (SSE), `/api/chat/sessions`
+- **Retry Logic**: Auto-retries on connection errors
+
+### `cli.py` — The Terminal Companion
+
+Interactive CLI with:
+- **Persistent history** (`.cli_history` file)
+- **Multi-line input** with automatic paste detection (bracketed paste mode)
+- **Real-time streaming** responses
+
+### `oracle.bat` — The One-Click Launcher
+
+Batch script that:
+1. Checks Python is installed
+2. Verifies `.env` exists
+3. Fires up Web UI or CLI
+4. Cleans up browser and server on shutdown
+
+### `system_prompt.md` — The Personality
+
+Defines Oracle's persona, behavioral rules, and operating protocols:
+- General behavior guidelines
+- Software engineering workflow
+- Code conventions
+- Debugging and testing protocols
+- **Tool creation mandate**: Oracle never says "I can't" — it builds what it needs
 
 ---
 
-## Note sulla Sicurezza
+## 📋 Requirements
 
-- La **API key** e' memorizzata nel file `.env` — non condividerlo mai
-- Oracle non modifica file fuori dalla directory del progetto
-- I comandi shell potenzialmente pericolosi richiedono conferma
+### Python Dependencies (`requirements.txt`)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `agno` | >=2.6.4 | AI agent framework |
+| `python-dotenv` | >=1.1.1 | Environment variable loader |
+| `httpx` | >=0.28.1 | HTTP client with configurable timeouts |
+| `uvicorn` | >=0.40.0 | ASGI server for FastAPI |
+| `openai` | >=1.0.0 | OpenAI-compatible API client |
+| `sqlalchemy` | >=2.0.0 | ORM for database |
+| `aiosqlite` | >=0.19.0 | Async SQLite |
+| `fastapi` | >=0.100.0 | Web server for API |
 
 ---
 
-## Licenza
+## 🔒 Security Notes
 
-MIT — per scopi di ricerca e sviluppo legittimi.
+- Your **API key** lives in `.env` — never share it
+- Oracle won't modify files outside the project directory
+- Potentially dangerous shell commands require confirmation
 
 ---
 
-*Generato con cura da Oracle*
+## 📄 License
+
+MIT — for legitimate research and development purposes.
+
+---
+
+> *Crafted with care by Oracle 🤖*
