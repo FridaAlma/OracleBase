@@ -1,4 +1,3 @@
-import os
 import sys
 import atexit
 from pathlib import Path
@@ -7,7 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from coding_agent import coding_agent, coding_agent_pro, _detect_task_complexity, _select_model
+from coding_agent import (
+    coding_agent, coding_agent_pro,
+    _detect_task_complexity, _select_model,
+)
 
 HISTORY_FILE = Path(__file__).parent / ".cli_history"
 
@@ -41,7 +43,7 @@ def _resolve_agent(message: str = ""):
     # auto
     detected = _detect_task_complexity(message)
     if detected == "pro":
-        print(f"  [Oracle-Pro] Task complesso rilevato -> {os.getenv('MODEL_PRO_NAME', 'DeepSeek V4 Pro')}")
+        print(f"  [Oracle-Pro] Task complesso rilevato -> DeepSeek V4 Pro")
         return coding_agent_pro
     return coding_agent
 
@@ -121,9 +123,7 @@ def interactive():
     tier_label = "PRO" if _model_tier == "pro" else "FLASH" if _model_tier == "flash" else "AUTO"
     print(f"Oracle CLI - Ctrl+C o 'exit' per uscire  |  Modello: {tier_label}")
     if _model_tier == "auto":
-        pro_name = os.getenv("MODEL_PRO_NAME", "DeepSeek V4 Pro")
-        flash_name = os.getenv("MODEL_NAME", "DeepSeek V4 Flash")
-        print(f"  (auto: task complessi -> {pro_name}, semplici -> {flash_name})")
+        print("  (auto: task complessi -> DeepSeek V4 Pro, semplici -> Flash)")
     print("(Incolla testo su piu' righe con Ctrl+V - viene rilevato automaticamente)\n")
 
     while True:
@@ -159,12 +159,10 @@ if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--deep") and not a.startswith("--pro") and not a.startswith("--flash")]
     if "--deep" in sys.argv or "--pro" in sys.argv:
         _model_tier = "pro"
-        pro_name = os.getenv("MODEL_PRO_NAME", "DeepSeek V4 Pro")
-        print(f"[Oracle] Modalita PRO forzata - {pro_name} per tutti i task")
+        print("[Oracle] Modalita PRO forzata - DeepSeek V4 Pro per tutti i task")
     elif "--flash" in sys.argv:
         _model_tier = "flash"
-        flash_name = os.getenv("MODEL_NAME", "DeepSeek V4 Flash")
-        print(f"[Oracle] Modalita FLASH forzata - {flash_name} per tutti i task")
+        print("[Oracle] Modalita FLASH forzata - DeepSeek V4 Flash per tutti i task")
 
     if args:
         one_shot(" ".join(args))

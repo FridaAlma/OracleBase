@@ -1029,6 +1029,167 @@
         .message { max-width: 100%; }
         .msg-content { font-size: 13px; padding: 10px 12px; }
     }
+
+    /* ── Constitution Modal ── */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .constitution-modal {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        max-width: 700px;
+        width: 90%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+    .modal-header h2 {
+        font-size: 18px;
+        font-weight: 600;
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body {
+        padding: 16px 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    .constitution-section {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+    .constitution-section h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+    }
+    .constitution-article {
+        display: flex;
+        gap: 12px;
+        padding: 8px 12px;
+        margin: 4px 0;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        border-left: 3px solid var(--accent);
+        font-size: 13px;
+    }
+    .constitution-article .article-num {
+        font-weight: 700;
+        color: var(--accent);
+        flex-shrink: 0;
+        min-width: 24px;
+    }
+    .constitution-article .article-text {
+        color: var(--text-primary);
+    }
+    .tool-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        margin: 4px 0;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        font-size: 13px;
+    }
+    .tool-item .tool-name {
+        font-family: var(--font-mono);
+        flex: 1;
+        color: var(--accent);
+    }
+    .tool-item .tool-status {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    .tool-status.pending {
+        background: #d2992233;
+        color: var(--warning);
+    }
+    .tool-status.approved {
+        background: #3fb95033;
+        color: var(--success);
+    }
+    .tool-status.rejected {
+        background: #f8514933;
+        color: var(--danger);
+    }
+    .tool-item .tool-actions {
+        display: flex;
+        gap: 4px;
+    }
+    .tool-item .tool-actions button {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .tool-item .tool-actions button:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    .tool-item .tool-actions .btn-approve {
+        border-color: var(--success);
+        color: var(--success);
+    }
+    .tool-item .tool-actions .btn-approve:hover {
+        background: #3fb95022;
+    }
+    .tool-item .tool-actions .btn-reject {
+        border-color: var(--danger);
+        color: var(--danger);
+    }
+    .tool-item .tool-actions .btn-reject:hover {
+        background: #f8514922;
+    }
+    .tool-item .tool-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-basis: 100%;
+    }
+    .confirmation-item {
+        padding: 8px 12px;
+        margin: 4px 0;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        border-left: 3px solid var(--warning);
+        font-size: 13px;
+    }
+    .loading {
+        color: var(--text-muted);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px;
+    }
 </style>
 </head>
 <body>
@@ -1052,6 +1213,7 @@
         <span id="statusText">Connesso</span>
     </div>
     <button class="btn-icon" id="clearBtn" title="Nuova conversazione">↺</button>
+    <button class="btn-icon" id="constitutionBtn" title="Costituzione">⚖️</button>
 </div>
 
 <!-- ── Chat Messages ── -->
@@ -1064,6 +1226,39 @@
     <div class="input-wrapper">
         <textarea class="input-field" id="inputField" rows="1" placeholder="Scrivi un messaggio..." autofocus></textarea>
         <button class="send-btn" id="sendBtn" title="Invia (Invio)">➤</button>
+    </div>
+</div>
+
+<!-- ── Constitution Modal ── -->
+<div class="modal-overlay" id="constitutionOverlay" style="display:none;">
+    <div class="modal constitution-modal">
+        <div class="modal-header">
+            <h2>⚖️ Costituzione di Oracle</h2>
+            <button class="modal-close" id="constitutionClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="constitution-articles" id="constitutionArticles">
+                <div class="loading">Caricamento articoli...</div>
+            </div>
+            <div class="constitution-section">
+                <h3>📦 Tool in attesa di approvazione</h3>
+                <div id="pendingToolsList">
+                    <div class="loading">Caricamento tool pending...</div>
+                </div>
+            </div>
+            <div class="constitution-section">
+                <h3>✅ Tool approvati</h3>
+                <div id="approvedToolsList">
+                    <div class="loading">Caricamento...</div>
+                </div>
+            </div>
+            <div class="constitution-section">
+                <h3>⏳ Conferme in sospeso</h3>
+                <div id="pendingConfirmationsList">
+                    <div class="loading">Caricamento...</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1767,6 +1962,166 @@
 
     // Welcome message
     addMessage('assistant', 'Ciao! Sono **Oracle**, il tuo AI Coding Agent.\n\nChiedimi qualsiasi cosa, dalla scrittura di codice al debugging, al refactoring. Sono qui per aiutarti!');
+
+    // ── Constitution Panel ──
+    const constitutionBtn = document.getElementById('constitutionBtn');
+    const constitutionOverlay = document.getElementById('constitutionOverlay');
+    const constitutionClose = document.getElementById('constitutionClose');
+
+    constitutionBtn.addEventListener('click', () => {
+        constitutionOverlay.style.display = 'flex';
+        loadConstitutionData();
+    });
+
+    constitutionClose.addEventListener('click', () => {
+        constitutionOverlay.style.display = 'none';
+    });
+
+    constitutionOverlay.addEventListener('click', (e) => {
+        if (e.target === constitutionOverlay) {
+            constitutionOverlay.style.display = 'none';
+        }
+    });
+
+    async function loadConstitutionData() {
+        await Promise.all([
+            loadConstitutionArticles(),
+            loadPendingTools(),
+            loadAllTools(),
+            loadPendingConfirmations()
+        ]);
+    }
+
+    async function loadConstitutionArticles() {
+        try {
+            const resp = await fetch('/api/constitution/articles', { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            const container = document.getElementById('constitutionArticles');
+            if (!data.articles || data.articles.length === 0) {
+                container.innerHTML = '<div class="loading">Nessun articolo trovato.</div>';
+                return;
+            }
+            container.innerHTML = data.articles.map(a =>
+                `<div class="constitution-article">
+                    <div class="article-num">[${a.id}]</div>
+                    <div class="article-text">${escapeHtml(a.text)}</div>
+                </div>`
+            ).join('');
+        } catch (e) {
+            document.getElementById('constitutionArticles').innerHTML =
+                '<div class="loading">Errore caricamento: ' + e.message + '</div>';
+        }
+    }
+
+    async function loadPendingTools() {
+        try {
+            const resp = await fetch('/api/constitution/pending-tools', { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            const container = document.getElementById('pendingToolsList');
+            if (!data.pending || data.pending.length === 0) {
+                container.innerHTML = '<div class="loading">Nessun tool in attesa.</div>';
+                return;
+            }
+            container.innerHTML = data.pending.map(t =>
+                `<div class="tool-item">
+                    <span class="tool-name">${escapeHtml(t.name)}</span>
+                    <span class="tool-status pending">${t.status}</span>
+                    <div class="tool-actions">
+                        <button class="btn-approve" onclick="approveTool('${t.id}')">Approvato</button>
+                        <button class="btn-reject" onclick="rejectTool('${t.id}')">Rifiutato</button>
+                    </div>
+                    ${t.description ? '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' : ''}
+                </div>`
+            ).join('');
+        } catch (e) {
+            document.getElementById('pendingToolsList').innerHTML =
+                '<div class="loading">Errore caricamento: ' + e.message + '</div>';
+        }
+    }
+
+    async function loadAllTools() {
+        try {
+            const resp = await fetch('/api/constitution/all-tools', { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            const container = document.getElementById('approvedToolsList');
+            if (!data.tools || data.tools.length === 0) {
+                container.innerHTML = '<div class="loading">Nessun tool registrato.</div>';
+                return;
+            }
+            // Show only approved + rejected
+            const filtered = data.tools.filter(t => t.status !== 'pending');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="loading">Nessun tool approvato o rifiutato.</div>';
+                return;
+            }
+            container.innerHTML = filtered.map(t =>
+                `<div class="tool-item">
+                    <span class="tool-name">${escapeHtml(t.name)}</span>
+                    <span class="tool-status ${t.status}">${t.status}</span>
+                    ${t.description ? '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' : ''}
+                </div>`
+            ).join('');
+        } catch (e) {
+            document.getElementById('approvedToolsList').innerHTML =
+                '<div class="loading">Errore caricamento: ' + e.message + '</div>';
+        }
+    }
+
+    async function loadPendingConfirmations() {
+        try {
+            const resp = await fetch('/api/constitution/pending-confirmations', { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            const container = document.getElementById('pendingConfirmationsList');
+            if (!data.confirmations || data.confirmations.length === 0) {
+                container.innerHTML = '<div class="loading">Nessuna conferma in sospeso.</div>';
+                return;
+            }
+            container.innerHTML = data.confirmations.map(c =>
+                `<div class="confirmation-item">
+                    <strong>${escapeHtml(c.action_type)}</strong>: ${escapeHtml(c.description)}
+                    ${c.target_path ? '<br><small>Target: ' + escapeHtml(c.target_path) + '</small>' : ''}
+                </div>`
+            ).join('');
+        } catch (e) {
+            document.getElementById('pendingConfirmationsList').innerHTML =
+                '<div class="loading">Errore caricamento: ' + e.message + '</div>';
+        }
+    }
+
+    // Expose approve/reject functions globally
+    window.approveTool = async function(toolId) {
+        try {
+            const resp = await fetch('/api/constitution/approve-tool', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tool_id: toolId }),
+                signal: AbortSignal.timeout(5000)
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            await loadConstitutionData();
+        } catch (e) {
+            console.error('Approve error:', e);
+        }
+    };
+
+    window.rejectTool = async function(toolId) {
+        try {
+            const resp = await fetch('/api/constitution/reject-tool', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tool_id: toolId }),
+                signal: AbortSignal.timeout(5000)
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            await loadConstitutionData();
+        } catch (e) {
+            console.error('Reject error:', e);
+        }
+    };
 
 })();
 </script>

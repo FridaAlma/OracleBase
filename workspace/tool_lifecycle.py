@@ -170,12 +170,21 @@ class ToolLifecycleManager:
         # Temporanei espliciti
         if '.tmp' in name or '__tmp__' in name or name.startswith('tmp_'):
             return "volatile"
+        # Script temporanei/usa-e-getta (anche in workspace/)
+        # Pattern: analyze_*, cleanup_*, clean_*, test_*, check_*,
+        #          fetch_*, extract_*, search_*, find_*, _prefisso
+        if re.search(
+            r'^(analyze_|cleanup_|clean_|test_|check_|fetch_|extract_|'
+            r'search_|find_|store_in_|register_all_|_|debug_|cwd_)',
+            name, re.I
+        ):
+            return "volatile"
         path_lower = file_path.lower()
         # Nella root (fuori workspace/) → volatile
         if 'workspace' not in path_lower:
             return "volatile"
-        # Dentro workspace/ → persistente
-        if 'workspace' in path_lower and '.tmp' not in name:
+        # Dentro workspace/ → persistente (solo se non è temporaneo)
+        if 'workspace' in path_lower:
             return "persistent"
         return "volatile"
 

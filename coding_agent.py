@@ -105,7 +105,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 # ── API Connectivity Check ──────────────────────────────────────
 def _check_api_connectivity():
     api_key = os.getenv("API_KEY")
-    base_url = os.getenv("API_BASE_URL", "https://api.deepseek.com/v1")
+    base_url = os.getenv("API_BASE_URL", "https://api.deepseek.com")
     model_id = os.getenv("MODEL_ID", "deepseek-v4-flash")
 
     if not api_key:
@@ -113,6 +113,11 @@ def _check_api_connectivity():
         return
 
     import httpx
+
+    _last_seg = base_url.rstrip("/").split("/")[-1]
+    if _last_seg == "v1":
+        print("[DIAG] ATTENZIONE: API_BASE_URL termina con '/v1'. Usa https://api.deepseek.com (senza /v1).")
+
     print(f"[DIAG] Connessione a {base_url} ...", end=" ", flush=True)
     try:
         r = httpx.get(
@@ -139,6 +144,7 @@ def _check_api_connectivity():
 
 
 from agno.agent import Agent # type: ignore
+from agno.exceptions import ModelProviderError # type: ignore
 from agno.models.openai import OpenAIChat # type: ignore
 from agno.tools.coding import CodingTools # type: ignore
 from agno.tools.workspace import Workspace # type: ignore
@@ -178,31 +184,17 @@ except Exception as _e:
 
 import httpx
 
-# ── HTTP Clients ────────────────────────────────────────────────
-# Sync client per operazioni CLI (non usato per streaming)
-_sync_http_client = httpx.Client(
-    timeout=httpx.Timeout(300.0, connect=60.0, read=300.0, write=120.0),
-    limits=httpx.Limits(max_keepalive_connections=3, max_connections=5),
-)
-
-# Async client per l'endpoint streaming SSE
-_async_http_client = httpx.AsyncClient(
-    timeout=httpx.Timeout(300.0, connect=60.0, read=300.0, write=120.0),
-    limits=httpx.Limits(max_keepalive_connections=3, max_connections=5),
-)
-
 # ── Modello OpenAIChat ──────────────────────────────────────────
 request_timeout = float(os.getenv("REQUEST_TIMEOUT", "300"))
 
 _model_config = {
     "id": os.getenv("MODEL_ID", "deepseek-v4-flash"),
-    "base_url": os.getenv("API_BASE_URL", "https://api.deepseek.com/v1"),
+    "base_url": os.getenv("API_BASE_URL", "https://api.deepseek.com"),
     "api_key": os.getenv("API_KEY"),
-    "temperature": float(os.getenv("TEMPERATURE", "0.1")),
+    "temperature": 0.1,
     "max_tokens": min(int(os.getenv("MAX_TOKENS", "16384")), 16384),
-    "max_retries": int(os.getenv("MAX_RETRIES", "5")),
+    "max_retries": 5,
     "timeout": httpx.Timeout(request_timeout, connect=60.0, read=request_timeout, write=120.0),
-    "http_client": _sync_http_client,
     "role_map": {"system": "system", "user": "user", "assistant": "assistant", "tool": "tool"},
 }
 
@@ -238,9 +230,10 @@ def _select_model(tier: str, message: str = "") -> OpenAIChat:
 _check_api_connectivity()
 
 # ── Agent Factory ────────────────────────────────────────────────
+_instructions_text = (BASE_DIR / "system_prompt.md").read_text(encoding="utf-8")
 _agent_kwargs = dict(
     description="Pure coding agent — reads, writes, edits, searches, and runs code.",
-    instructions=(BASE_DIR / "system_prompt.md").read_text(encoding="utf-8").strip().split("\n"),
+    instructions=_instructions_text.strip().split("\n"),
     tools=[
         CodingTools(
             base_dir=str(BASE_DIR),
@@ -290,16 +283,16 @@ app = agent_os.get_app()
 def _get_active_model_info(tier: str = None, message: str = "") -> dict:
     """Restituisce info sul modello attivo per una richiesta."""
     selected = _select_model(tier, message)
+    model_id = os.getenv("MODEL_PRO_ID" if selected is model_pro else "MODEL_ID", "deepseek-v4-flash")
+    model_name = "DeepSeek V4 Pro" if selected is model_pro else "DeepSeek V4 Flash"
     is_pro = selected is model_pro
-    model_id = os.getenv("MODEL_PRO_ID" if is_pro else "MODEL_ID", "deepseek-v4-flash")
-    model_name = os.getenv("MODEL_PRO_NAME" if is_pro else "MODEL_NAME", "DeepSeek V4 Pro" if is_pro else "DeepSeek V4 Flash")
     effective_tier = tier or os.getenv("MODEL_TIER", "auto")
     return {
         "model_id": model_id,
         "model_name": model_name,
         "tier": "pro" if is_pro else "flash",
         "tier_mode": effective_tier,
-
+        "params_active": "49B" if is_pro else "13B",
     }
 
 
@@ -325,7 +318,11 @@ async def chat_api(request: Request):
             "run_id": result.run_id if hasattr(result, "run_id") else None,
             "model": _get_active_model_info(model_tier, message),
         })
+    except ModelProviderError as e:
+        logging.error(f"[API] ModelProviderError: status={e.status_code} message={e.message} model={e.model_id}")
+        return JSONResponse({"error": e.message, "status_code": e.status_code}, status_code=e.status_code)
     except Exception as e:
+        logging.error(f"[API] Errore interno: {type(e).__name__}: {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
@@ -382,7 +379,9 @@ async def chat_stream(message: str, session_id: str = None, model_tier: str = No
                     chunk = getattr(event, "content", "") or ""
                     if chunk:
                         content_buffer += chunk
-                        yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
+                        # → IMMUNITY SANITIZE output in tempo reale
+                        safe_chunk = immunity_sanitize(chunk)
+                        yield f"data: {json.dumps({'type': 'content', 'data': safe_chunk})}\n\n"
 
                 elif event_type == "ToolCallStarted":
                     tool = getattr(event, "tool", None)
@@ -440,8 +439,14 @@ async def chat_stream(message: str, session_id: str = None, model_tier: str = No
 
         except asyncio.CancelledError:
             pass
+        except ModelProviderError as e:
+            error_msg = e.message or str(e)
+            logging.error(f"[Stream] ModelProviderError: status={e.status_code} message={e.message} model={e.model_id}")
+            yield f"data: {json.dumps({'type': 'log', 'data': {'text': f'⚠ [{e.status_code}] {error_msg[:200]}', 'type': 'error'}})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'data': f'Errore API ({e.status_code}): {error_msg}'})}\n\n"
         except Exception as e:
             error_msg = str(e)
+            logging.error(f"[Stream] Errore: {type(e).__name__}: {error_msg}", exc_info=True)
             yield f"data: {json.dumps({'type': 'log', 'data': {'text': f'⚠ {error_msg[:200]}', 'type': 'error'}})}\n\n"
             if "incomplete chunked read" in error_msg.lower() or "peer closed connection" in error_msg.lower():
                 yield f"data: {json.dumps({'type': 'retry', 'data': 'Connessione interrotta, nuovo tentativo...'})}\n\n"
@@ -500,7 +505,11 @@ async def chat_stream(message: str, session_id: str = None, model_tier: str = No
                         rid = getattr(event, "run_id", None)
                         if rid:
                             last_run_id = rid
+                except ModelProviderError as e2:
+                    logging.error(f"[Stream-Retry] ModelProviderError: status={e2.status_code} message={e2.message}")
+                    yield f"data: {json.dumps({'type': 'error', 'data': f'Errore API dopo retry ({e2.status_code}): {e2.message}'})}\n\n"
                 except Exception as e2:
+                    logging.error(f"[Stream-Retry] Errore: {type(e2).__name__}: {e2}", exc_info=True)
                     yield f"data: {json.dumps({'type': 'error', 'data': f'Errore dopo retry: {str(e2)}'})}\n\n"
             else:
                 yield f"data: {json.dumps({'type': 'error', 'data': error_msg})}\n\n"
@@ -531,11 +540,19 @@ async def get_model_info():
     return JSONResponse({
         "flash": {
             "model_id": os.getenv("MODEL_ID", "deepseek-v4-flash"),
-            "model_name": os.getenv("MODEL_NAME", "DeepSeek V4 Flash"),
-            },
+            "model_name": "DeepSeek V4 Flash",
+            "params_active": "13B",
+            "price_input_cache_hit": "$0.0028/1M",
+            "price_input_cache_miss": "$0.14/1M",
+            "price_output": "$0.28/1M",
+        },
         "pro": {
             "model_id": os.getenv("MODEL_PRO_ID", "deepseek-v4-pro"),
-            "model_name": os.getenv("MODEL_PRO_NAME", "DeepSeek V4 Pro"),
+            "model_name": "DeepSeek V4 Pro",
+            "params_active": "49B",
+            "price_input_cache_hit": "$0.003625/1M",
+            "price_input_cache_miss": "$0.435/1M",
+            "price_output": "$0.87/1M",
         },
         "current_tier": current_tier,
         "current": _get_active_model_info(),
@@ -564,11 +581,92 @@ async def list_sessions(limit: int = 20):
 CHAT_HTML_PATH = BASE_DIR / "chat.html"
 
 
+# ── Constitution API ──────────────────────────────────────────────
+_CONSTITUTION_ENFORCER = None
+
+def _get_constitution():
+    global _CONSTITUTION_ENFORCER
+    if _CONSTITUTION_ENFORCER is None:
+        from tools.constitution import ConstitutionEnforcer
+        _CONSTITUTION_ENFORCER = ConstitutionEnforcer()
+    return _CONSTITUTION_ENFORCER
+
+
+@app.get("/api/constitution/articles")
+async def get_constitution_articles():
+    """Restituisce gli articoli della costituzione."""
+    from tools.constitution import ARTICLES
+    return JSONResponse({"articles": [{"id": k, "text": v} for k, v in sorted(ARTICLES.items())]})
+
+
+@app.get("/api/constitution/pending-tools")
+async def get_pending_tools():
+    """Lista dei tool in attesa di approvazione."""
+    enforcer = _get_constitution()
+    pending = enforcer.tool_registry.get_pending()
+    return JSONResponse({"pending": pending})
+
+
+@app.get("/api/constitution/all-tools")
+async def get_all_tools():
+    """Lista di tutti i tool registrati."""
+    enforcer = _get_constitution()
+    all_tools = enforcer.tool_registry.get_all()
+    return JSONResponse({"tools": all_tools})
+
+
+@app.post("/api/constitution/approve-tool")
+async def approve_tool(request: Request):
+    """Approva un tool pending."""
+    body = await request.json()
+    tool_id = body.get("tool_id", "")
+    if not tool_id:
+        return JSONResponse({"error": "tool_id richiesto"}, status_code=400)
+    enforcer = _get_constitution()
+    result = enforcer.tool_registry.approve(tool_id)
+    return JSONResponse(result)
+
+
+@app.post("/api/constitution/reject-tool")
+async def reject_tool(request: Request):
+    """Rifiuta un tool pending."""
+    body = await request.json()
+    tool_id = body.get("tool_id", "")
+    if not tool_id:
+        return JSONResponse({"error": "tool_id richiesto"}, status_code=400)
+    enforcer = _get_constitution()
+    result = enforcer.tool_registry.reject(tool_id)
+    return JSONResponse(result)
+
+
+@app.get("/api/constitution/pending-confirmations")
+async def get_pending_confirmations():
+    """Lista delle conferme pending."""
+    enforcer = _get_constitution()
+    pending = enforcer.confirmation.list_pending()
+    return JSONResponse({"confirmations": pending})
+
+
+@app.post("/api/constitution/confirm")
+async def confirm_action(request: Request):
+    """Conferma un'azione."""
+    body = await request.json()
+    conf_id = body.get("confirmation_id", "")
+    if not conf_id:
+        return JSONResponse({"error": "confirmation_id richiesto"}, status_code=400)
+    enforcer = _get_constitution()
+    result = enforcer.confirmation.confirm(conf_id)
+    return JSONResponse(result)
+
+
 @app.get("/ui")
 async def serve_chat_ui():
     if CHAT_HTML_PATH.exists():
         return FileResponse(str(CHAT_HTML_PATH))
     return JSONResponse({"error": "chat.html non trovato"}, status_code=404)
+
+
+
 
 
 if __name__ == "__main__":
